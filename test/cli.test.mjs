@@ -9,6 +9,7 @@ import { loadConfig } from '../src/config.mjs';
 import { branchShots, gitContext, shotPath, slug } from '../src/context.mjs';
 import { upload, withScreenshots } from '../src/publish.mjs';
 import { githubStore } from '../src/stores/github.mjs';
+import { r2Store } from '../src/stores/r2.mjs';
 import { s3Store } from '../src/stores/s3.mjs';
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
@@ -197,4 +198,27 @@ test('cli: path prints where the screenshot goes', () => {
   const env = { ...process.env, ...shotsDir() };
   const out = execFileSync('node', [join(import.meta.dirname, '..', 'bin', 'pr-shots.mjs'), 'path', 'list'], { cwd: dir, env, encoding: 'utf8' }).trim();
   assert.match(basename(out), /^feat-category-admin-list-[0-9a-f]{7,}\.png$/);
+});
+
+test('r2 store: pipes the file to wrangler and returns the public URL', async () => {
+  const calls = [];
+  const store = r2Store(
+    { bucket: 'shots', publicUrl: 'https://pub.example/' },
+    { wrangler: (args, input) => calls.push({ args, input: input.toString() }) }
+  );
+
+  assert.equal(await store.put('proj/hash/a b.png', Buffer.from('pixels')), 'https://pub.example/proj/hash/a%20b.png');
+  assert.deepEqual(calls, [
+    {
+      args: ['r2', 'object', 'put', 'shots/proj/hash/a b.png', '--pipe', '--remote', '--content-type', 'image/png'],
+      input: 'pixels',
+    },
+  ]);
+
+  assert.throws(() => r2Store({ bucket: 'shots' }), /needs publicUrl/);
+  const failing = r2Store(
+    { bucket: 'b', publicUrl: 'https://p' },
+    { wrangler: () => { throw Object.assign(new Error('exit 1'), { stderr: 'bucket not found' }); } }
+  );
+  await assert.rejects(failing.put('a.png', Buffer.from('x')), /upload of a.png failed: bucket not found/);
 });

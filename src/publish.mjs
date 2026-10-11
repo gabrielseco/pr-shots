@@ -2,12 +2,14 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { sha256 } from './sigv4.mjs';
 import { githubStore } from './stores/github.mjs';
+import { r2Store } from './stores/r2.mjs';
 import { s3Store } from './stores/s3.mjs';
 
 export function createStore(config, deps) {
   if (config.store === 's3') return s3Store(config, deps);
+  if (config.store === 'r2') return r2Store(config, deps);
   if (config.store === 'github') return githubStore(config, deps);
-  throw new Error(`unknown store "${config.store}" (use s3 or github)`);
+  throw new Error(`unknown store "${config.store}" (use s3, r2 or github)`);
 }
 
 /**

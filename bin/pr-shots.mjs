@@ -20,6 +20,8 @@ const HELP = `pr-shots: keep the screenshots that prove a change, and put them i
 Stores (--store):
   github   a "screenshots" branch of the repository; nothing public, needs gh.
            Options: --repo owner/name, --branch screenshots
+  r2       a Cloudflare R2 bucket through wrangler's own login: no keys.
+           Options: --bucket, --public-url, --prefix
   s3       any S3-compatible bucket (Cloudflare R2, AWS S3, MinIO).
            Options: --bucket, --endpoint, --public-url, --region, --prefix
            Keys: PR_SHOTS_ACCESS_KEY_ID / PR_SHOTS_SECRET_ACCESS_KEY (or AWS_*)

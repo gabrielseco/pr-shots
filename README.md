@@ -41,6 +41,18 @@ stay until you delete them from that branch.
 
     pr-shots pr --store github [--repo owner/name] [--branch screenshots]
 
+### `r2`: Cloudflare R2 through wrangler
+
+Uploads with `npx wrangler`, signed in by `wrangler login`, so there are no access keys to create or
+store. Needs only the bucket and its public URL. Public like any bucket: see the note under `s3`.
+
+    npx wrangler login
+    npx wrangler r2 bucket create pr-shots
+    npx wrangler r2 bucket dev-url enable pr-shots          # prints the public URL
+    npx wrangler r2 bucket lifecycle add pr-shots expire-90d --expire-days 90
+
+    pr-shots pr --store r2 --bucket pr-shots --public-url https://pub-<id>.r2.dev
+
 ### `s3`: any S3-compatible bucket (Cloudflare R2, AWS S3, MinIO)
 
 The bucket has to be publicly readable: anyone with a link can open the image. Each key contains
