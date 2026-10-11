@@ -9,8 +9,13 @@ It does two things:
    directory (the main checkout's, so worktrees share it), `<branch>` has its slashes turned into
    dashes, `<sha>` is the short HEAD.
 2. **Publishes them.** `pr-shots pr` uploads the current branch's screenshots and writes a
-   `## Screenshots` section into the pull request's description. Running it again replaces the
-   section.
+   `## Screenshots` section into the pull request's description: a grid of thumbnails. Running it
+   again replaces the section.
+3. **Shows them as a carousel.** A pull request's description can't run scripts, so with the `r2`
+   and `s3` stores a `gallery.html` is uploaded beside the images and each thumbnail links to it,
+   opened on that image. Left and right arrows (or Home / End) move between them, a click on the
+   image switches between fitting the window and full size, and one Back returns to the pull
+   request. The `github` store can't serve a page, so there a thumbnail opens its image.
 
 No dependencies; Node 22 or later. `pr-shots pr` and the `github` store use the `gh` CLI.
 

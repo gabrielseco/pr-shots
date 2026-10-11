@@ -7,7 +7,13 @@ import { basename, join } from 'node:path';
 import { test } from 'node:test';
 import { loadConfig } from '../src/config.mjs';
 import { branchShots, gitContext, shotPath, slug } from '../src/context.mjs';
-import { upload, withScreenshots } from '../src/publish.mjs';
+import { galleryHtml } from '../src/gallery.mjs';
+import {
+  markdown,
+  upload,
+  uploadGallery,
+  withScreenshots,
+} from '../src/publish.mjs';
 import { githubStore } from '../src/stores/github.mjs';
 import { r2Store } from '../src/stores/r2.mjs';
 import { s3Store } from '../src/stores/s3.mjs';
@@ -263,7 +269,7 @@ test('the PR body gets a screenshots section, replaced on the next run', () => {
   ]);
   assert.equal(
     first,
-    '## Summary\n\nText.\n\n<!-- pr-shots:start -->\n## Screenshots\n\n**Paid with**\n\n![Paid with](https://x/1.png)\n<!-- pr-shots:end -->\n'
+    '## Summary\n\nText.\n\n<!-- pr-shots:start -->\n## Screenshots\n\n<table>\n<tr>\n<td align="center" valign="top"><a href="https://x/1.png"><img src="https://x/1.png" width="260" alt="Paid with"></a><br><sub>Paid with</sub></td>\n</tr>\n</table>\n<!-- pr-shots:end -->\n'
   );
 
   const second = withScreenshots(`${first}\nFooter`, [
@@ -274,6 +280,65 @@ test('the PR body gets a screenshots section, replaced on the next run', () => {
     second.startsWith('## Summary\n\nText.\n\n<!-- pr-shots:start -->')
   );
   assert.ok(second.endsWith('<!-- pr-shots:end -->\n\nFooter'));
+});
+
+test('with a gallery, each thumbnail opens the carousel on its image', () => {
+  const shots = ['a', 'b', 'c', 'd'].map((name) => ({
+    name,
+    url: `https://x/${name}.png`,
+  }));
+  const section = markdown(shots, 'https://x/h/gallery.html');
+
+  assert.ok(
+    section.startsWith('[Open as a gallery](https://x/h/gallery.html)')
+  );
+  assert.deepEqual(
+    [...section.matchAll(/<a href="([^"]+)">/g)].map((match) => match[1]),
+    [1, 2, 3, 4].map((n) => `https://x/h/gallery.html#${n}`)
+  );
+  // Three to a row.
+  assert.equal(section.match(/<tr>/g).length, 2);
+});
+
+test('gallery: uploaded as a page where the store serves pages', async () => {
+  const puts = [];
+  const store = {
+    pages: true,
+    put: async (key, body) => {
+      puts.push({ key, body: body.toString() });
+      return `https://pub.example/${key}`;
+    },
+  };
+  const shots = [
+    { name: 'edit-mode', url: 'https://pub.example/1.png' },
+    { name: 'a"<b>', url: 'https://pub.example/2.png?x=1&y=2' },
+  ];
+
+  const url = await uploadGallery(store, shots, {
+    project: 'expense-tracker',
+    prefix: '/pr/',
+    title: 'Build <cards> #121',
+  });
+
+  assert.match(
+    url,
+    /^https:\/\/pub\.example\/pr\/expense-tracker\/[0-9a-f]{16}\/gallery\.html$/
+  );
+  const [{ body }] = puts;
+  assert.equal(body, galleryHtml({ title: 'Build <cards> #121', shots }));
+  assert.ok(body.includes('<title>Build &lt;cards&gt; #121</title>'));
+  assert.ok(
+    body.includes(
+      '<a href="#2" title="A&quot;&lt;b&gt;" data-src="https://pub.example/2.png?x=1&amp;y=2">'
+    )
+  );
+  assert.ok(!body.includes('<b>'));
+
+  assert.equal(
+    await uploadGallery({ put: store.put }, shots, { project: 'p' }),
+    undefined
+  );
+  assert.equal(puts.length, 1);
 });
 
 test('cli: path prints where the screenshot goes', () => {
