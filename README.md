@@ -12,7 +12,7 @@ It does two things:
    `## Screenshots` section into the pull request's description. Running it again replaces the
    section.
 
-No dependencies; Node 20 or later. `pr-shots pr` and the `github` store use the `gh` CLI.
+No dependencies; Node 22 or later. `pr-shots pr` and the `github` store use the `gh` CLI.
 
 ## Install
 

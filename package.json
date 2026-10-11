@@ -5,7 +5,7 @@
   "type": "module",
   "bin": { "pr-shots": "bin/pr-shots.mjs" },
   "files": ["bin", "src"],
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=22" },
   "scripts": { "test": "node --test \"test/*.test.mjs\"" },
   "license": "MIT"
 }
