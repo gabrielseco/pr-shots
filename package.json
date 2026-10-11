@@ -1,0 +1,11 @@
+{
+  "name": "pr-shots",
+  "version": "0.1.0",
+  "description": "Name, keep and publish the screenshots that prove a change: one folder per project, one command to put them in the pull request.",
+  "type": "module",
+  "bin": { "pr-shots": "bin/pr-shots.mjs" },
+  "files": ["bin", "src"],
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test \"test/*.test.mjs\"" },
+  "license": "MIT"
+}
