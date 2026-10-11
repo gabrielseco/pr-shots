@@ -15,7 +15,9 @@ function defaultWrangler(args, input) {
 export function r2Store(config, { wrangler = defaultWrangler } = {}) {
   const missing = ['bucket', 'publicUrl'].filter((key) => !config[key]);
   if (missing.length > 0) {
-    throw new Error(`the r2 store needs ${missing.join(', ')} (flags, PR_SHOTS_* variables or a config file; see the README)`);
+    throw new Error(
+      `the r2 store needs ${missing.join(', ')} (flags, PR_SHOTS_* variables or a config file; see the README)`
+    );
   }
   const publicUrl = config.publicUrl.replace(/\/+$/, '');
 
@@ -25,12 +27,23 @@ export function r2Store(config, { wrangler = defaultWrangler } = {}) {
     async put(key, body) {
       try {
         wrangler(
-          ['r2', 'object', 'put', `${config.bucket}/${key}`, '--pipe', '--remote', '--content-type', contentType(key)],
+          [
+            'r2',
+            'object',
+            'put',
+            `${config.bucket}/${key}`,
+            '--pipe',
+            '--remote',
+            '--content-type',
+            contentType(key),
+          ],
           body
         );
       } catch (error) {
-        const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim().slice(-300) || error.message;
-        throw new Error(`upload of ${key} failed: ${detail}`);
+        const detail =
+          `${error.stdout ?? ''}${error.stderr ?? ''}`.trim().slice(-300) ||
+          error.message;
+        throw new Error(`upload of ${key} failed: ${detail}`, { cause: error });
       }
       return `${publicUrl}/${encodePath(key)}`;
     },

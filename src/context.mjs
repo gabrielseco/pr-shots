@@ -11,7 +11,11 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 
 const git = (args, cwd) =>
-  execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  }).trim();
 
 /** A branch or screenshot name as one filename-safe token. */
 export const slug = (text) =>
@@ -27,7 +31,10 @@ export function root(env = process.env) {
 export function gitContext(cwd = process.cwd()) {
   let commonDir;
   try {
-    commonDir = git(['rev-parse', '--path-format=absolute', '--git-common-dir'], cwd);
+    commonDir = git(
+      ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+      cwd
+    );
   } catch {
     throw new Error('not inside a git repository');
   }
@@ -39,17 +46,26 @@ export function gitContext(cwd = process.cwd()) {
 
   return {
     // <repo>/.git -> <repo>; a bare repository's own directory otherwise.
-    project: basename(basename(commonDir) === '.git' ? dirname(commonDir) : commonDir),
+    project: basename(
+      basename(commonDir) === '.git' ? dirname(commonDir) : commonDir
+    ),
     branch: slug(branch === 'HEAD' ? 'detached' : branch),
     sha: git(['rev-parse', '--short', 'HEAD'], cwd),
     otherBranches: branches.map(slug).filter((name) => name !== slug(branch)),
   };
 }
 
-export function shotPath(context, name, { ext = 'png', env = process.env } = {}) {
+export function shotPath(
+  context,
+  name,
+  { ext = 'png', env = process.env } = {}
+) {
   const dir = join(root(env), context.project);
   mkdirSync(dir, { recursive: true });
-  return join(dir, `${context.branch}-${slug(name)}-${context.sha}.${slug(ext)}`);
+  return join(
+    dir,
+    `${context.branch}-${slug(name)}-${context.sha}.${slug(ext)}`
+  );
 }
 
 /**
@@ -67,14 +83,27 @@ export function branchShots(context, { env = process.env } = {}) {
     .map((other) => `${other}-`);
 
   const shots = readdirSync(dir)
-    .filter((file) => file.startsWith(prefix) && !longer.some((p) => file.startsWith(p)))
+    .filter(
+      (file) =>
+        file.startsWith(prefix) && !longer.some((p) => file.startsWith(p))
+    )
     .flatMap((file) => {
-      const match = file.slice(prefix.length).match(/^(.+)-([0-9a-f]{7,40})\.([A-Za-z0-9]+)$/);
+      const match = file
+        .slice(prefix.length)
+        .match(/^(.+)-([0-9a-f]{7,40})\.([A-Za-z0-9]+)$/);
       if (!match) return [];
       const path = join(dir, file);
-      return [{ path, file, name: match[1], sha: match[2], mtime: statSync(path).mtimeMs }];
+      return [
+        {
+          path,
+          file,
+          name: match[1],
+          sha: match[2],
+          mtime: statSync(path).mtimeMs,
+        },
+      ];
     })
-    .sort((a, b) => b.mtime - a.mtime);
+    .toSorted((a, b) => b.mtime - a.mtime);
 
   const seen = new Set();
   return shots.filter((shot) => !seen.has(shot.name) && seen.add(shot.name));

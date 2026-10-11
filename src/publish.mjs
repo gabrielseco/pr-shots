@@ -20,7 +20,12 @@ export async function upload(store, files, { project, prefix = '' }) {
   const uploaded = [];
   for (const file of files) {
     const body = readFileSync(file.path);
-    const key = [prefix.replace(/^\/+|\/+$/g, ''), project, sha256(body).slice(0, 16), basename(file.path)]
+    const key = [
+      prefix.replace(/^\/+|\/+$/g, ''),
+      project,
+      sha256(body).slice(0, 16),
+      basename(file.path),
+    ]
       .filter(Boolean)
       .join('/');
     uploaded.push({ ...file, url: await store.put(key, body) });
@@ -31,10 +36,13 @@ export async function upload(store, files, { project, prefix = '' }) {
 const START = '<!-- pr-shots:start -->';
 const END = '<!-- pr-shots:end -->';
 
-const title = (name) => name.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+const title = (name) =>
+  name.replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 export function markdown(uploaded) {
-  return uploaded.map(({ name, url }) => `**${title(name)}**\n\n![${title(name)}](${url})`).join('\n\n');
+  return uploaded
+    .map(({ name, url }) => `**${title(name)}**\n\n![${title(name)}](${url})`)
+    .join('\n\n');
 }
 
 /** The body with its screenshots section replaced, or added at the end. */

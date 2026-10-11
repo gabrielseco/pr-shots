@@ -13,12 +13,17 @@ const CONTENT_TYPES = {
 };
 
 export const contentType = (file) =>
-  CONTENT_TYPES[file.split('.').pop().toLowerCase()] ?? 'application/octet-stream';
+  CONTENT_TYPES[file.split('.').pop().toLowerCase()] ??
+  'application/octet-stream';
 
 export function s3Store(config, { fetch = globalThis.fetch } = {}) {
-  const missing = ['bucket', 'endpoint', 'publicUrl', 'accessKeyId', 'secretAccessKey'].filter(
-    (key) => !config[key]
-  );
+  const missing = [
+    'bucket',
+    'endpoint',
+    'publicUrl',
+    'accessKeyId',
+    'secretAccessKey',
+  ].filter((key) => !config[key]);
   if (missing.length > 0) {
     throw new Error(
       `the s3 store needs ${missing.join(', ')} (flags, PR_SHOTS_* variables or a config file; see the README)`
@@ -52,7 +57,9 @@ export function s3Store(config, { fetch = globalThis.fetch } = {}) {
       const response = await fetch(url, { method: 'PUT', headers, body });
       if (!response.ok) {
         const detail = (await response.text()).slice(0, 300);
-        throw new Error(`upload of ${key} failed: ${response.status} ${detail}`);
+        throw new Error(
+          `upload of ${key} failed: ${response.status} ${detail}`
+        );
       }
       return `${publicUrl}/${path}`;
     },

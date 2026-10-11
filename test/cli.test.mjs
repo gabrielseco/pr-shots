@@ -12,18 +12,32 @@ import { githubStore } from '../src/stores/github.mjs';
 import { r2Store } from '../src/stores/r2.mjs';
 import { s3Store } from '../src/stores/s3.mjs';
 
-const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+const git = (cwd, ...args) =>
+  execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
 function repo(branch = 'feat/category-admin') {
   const dir = join(mkdtempSync(join(tmpdir(), 'pr-shots-')), 'expense-tracker');
   execFileSync('mkdir', ['-p', dir]);
   git(dir, 'init', '-q', '-b', 'main');
-  git(dir, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
+  git(
+    dir,
+    '-c',
+    'user.name=t',
+    '-c',
+    'user.email=t@t',
+    'commit',
+    '-q',
+    '--allow-empty',
+    '-m',
+    'init'
+  );
   git(dir, 'checkout', '-q', '-b', branch);
   return dir;
 }
 
-const shotsDir = () => ({ PR_SHOTS_DIR: mkdtempSync(join(tmpdir(), 'shots-')) });
+const shotsDir = () => ({
+  PR_SHOTS_DIR: mkdtempSync(join(tmpdir(), 'shots-')),
+});
 
 test('names a screenshot <project>/<branch>-<name>-<sha>.png', () => {
   const dir = repo();
@@ -33,17 +47,24 @@ test('names a screenshot <project>/<branch>-<name>-<sha>.png', () => {
   assert.equal(context.project, 'expense-tracker');
   assert.equal(
     shotPath(context, 'Paid with', { env }),
-    join(env.PR_SHOTS_DIR, 'expense-tracker', `feat-category-admin-Paid-with-${context.sha}.png`)
+    join(
+      env.PR_SHOTS_DIR,
+      'expense-tracker',
+      `feat-category-admin-Paid-with-${context.sha}.png`
+    )
   );
 });
 
-test('a worktree files under the main checkout\'s project', () => {
+test("a worktree files under the main checkout's project", () => {
   const dir = repo();
   const worktree = join(dir, '..', 'some-worktree');
   git(dir, 'worktree', 'add', '-q', '-b', 'fix/x', worktree);
 
   assert.deepEqual(
-    { project: gitContext(worktree).project, branch: gitContext(worktree).branch },
+    {
+      project: gitContext(worktree).project,
+      branch: gitContext(worktree).branch,
+    },
     { project: 'expense-tracker', branch: 'fix-x' }
   );
 });
@@ -83,17 +104,30 @@ test('slug keeps a name to one token', () => {
 
 test('config: flags beat the environment, a bucket selects the s3 store', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'cfg-'));
-  writeFileSync(join(cwd, '.pr-shots.json'), JSON.stringify({ bucket: 'from-file', prefix: 'p' }));
-  const env = { XDG_CONFIG_HOME: cwd, PR_SHOTS_BUCKET: 'from-env', AWS_ACCESS_KEY_ID: 'key' };
+  writeFileSync(
+    join(cwd, '.pr-shots.json'),
+    JSON.stringify({ bucket: 'from-file', prefix: 'p' })
+  );
+  const env = {
+    XDG_CONFIG_HOME: cwd,
+    PR_SHOTS_BUCKET: 'from-env',
+    AWS_ACCESS_KEY_ID: 'key',
+  };
 
-  assert.deepEqual(loadConfig({ env, cwd, flags: { bucket: 'from-flag', region: undefined } }), {
-    bucket: 'from-flag',
-    prefix: 'p',
-    accessKeyId: 'key',
-    secretAccessKey: undefined,
-    store: 's3',
-  });
-  assert.equal(loadConfig({ env: { XDG_CONFIG_HOME: cwd }, cwd: tmpdir() }).store, 'github');
+  assert.deepEqual(
+    loadConfig({ env, cwd, flags: { bucket: 'from-flag', region: undefined } }),
+    {
+      bucket: 'from-flag',
+      prefix: 'p',
+      accessKeyId: 'key',
+      secretAccessKey: undefined,
+      store: 's3',
+    }
+  );
+  assert.equal(
+    loadConfig({ env: { XDG_CONFIG_HOME: cwd }, cwd: tmpdir() }).store,
+    'github'
+  );
 });
 
 test('s3 store: signed path-style PUT, public URL back', async () => {
@@ -102,14 +136,22 @@ test('s3 store: signed path-style PUT, public URL back', async () => {
     const chunks = [];
     request.on('data', (chunk) => chunks.push(chunk));
     request.on('end', () => {
-      requests.push({ method: request.method, url: request.url, headers: request.headers, body: Buffer.concat(chunks).toString() });
+      requests.push({
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        body: Buffer.concat(chunks).toString(),
+      });
       response.end();
     });
   }).listen(0);
   const endpoint = `http://127.0.0.1:${server.address().port}`;
 
   try {
-    const file = join(mkdtempSync(join(tmpdir(), 'up-')), 'feat-a-list (1)-1111111.png');
+    const file = join(
+      mkdtempSync(join(tmpdir(), 'up-')),
+      'feat-a-list (1)-1111111.png'
+    );
     writeFileSync(file, 'pixels');
     const store = s3Store({
       bucket: 'shots',
@@ -119,28 +161,54 @@ test('s3 store: signed path-style PUT, public URL back', async () => {
       secretAccessKey: 'secret',
     });
 
-    const [uploaded] = await upload(store, [{ path: file, name: 'list' }], { project: 'expense-tracker', prefix: '/pr/' });
+    const [uploaded] = await upload(store, [{ path: file, name: 'list' }], {
+      project: 'expense-tracker',
+      prefix: '/pr/',
+    });
     const [request] = requests;
 
-    assert.match(uploaded.url, /^https:\/\/img\.example\.com\/pr\/expense-tracker\/[0-9a-f]{16}\/feat-a-list%20%281%29-1111111\.png$/);
+    assert.match(
+      uploaded.url,
+      /^https:\/\/img\.example\.com\/pr\/expense-tracker\/[0-9a-f]{16}\/feat-a-list%20%281%29-1111111\.png$/
+    );
     assert.equal(request.method, 'PUT');
-    assert.equal(request.url, `/shots/${uploaded.url.slice('https://img.example.com/'.length)}`);
+    assert.equal(
+      request.url,
+      `/shots/${uploaded.url.slice('https://img.example.com/'.length)}`
+    );
     assert.equal(request.body, 'pixels');
     assert.equal(request.headers['content-type'], 'image/png');
-    assert.match(request.headers.authorization, /^AWS4-HMAC-SHA256 Credential=key\/\d{8}\/auto\/s3\/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}$/);
+    assert.match(
+      request.headers.authorization,
+      /^AWS4-HMAC-SHA256 Credential=key\/\d{8}\/auto\/s3\/aws4_request, SignedHeaders=content-type;host;x-amz-content-sha256;x-amz-date, Signature=[0-9a-f]{64}$/
+    );
   } finally {
     server.close();
   }
 });
 
 test('s3 store: says what is missing, and reports a refused upload', async () => {
-  assert.throws(() => s3Store({ bucket: 'shots' }), /needs endpoint, publicUrl, accessKeyId, secretAccessKey/);
+  assert.throws(
+    () => s3Store({ bucket: 'shots' }),
+    /needs endpoint, publicUrl, accessKeyId, secretAccessKey/
+  );
 
   const store = s3Store(
-    { bucket: 'b', endpoint: 'http://x', publicUrl: 'http://y', accessKeyId: 'k', secretAccessKey: 's' },
-    { fetch: async () => new Response('SignatureDoesNotMatch', { status: 403 }) }
+    {
+      bucket: 'b',
+      endpoint: 'http://x',
+      publicUrl: 'http://y',
+      accessKeyId: 'k',
+      secretAccessKey: 's',
+    },
+    {
+      fetch: async () => new Response('SignatureDoesNotMatch', { status: 403 }),
+    }
   );
-  await assert.rejects(store.put('a.png', Buffer.from('x')), /upload of a.png failed: 403 SignatureDoesNotMatch/);
+  await assert.rejects(
+    store.put('a.png', Buffer.from('x')),
+    /upload of a.png failed: 403 SignatureDoesNotMatch/
+  );
 });
 
 test('github store: creates the orphan branch once, skips files already there', async () => {
@@ -148,14 +216,20 @@ test('github store: creates the orphan branch once, skips files already there', 
   const present = new Set();
   const gh = (args, input) => {
     const [, path] = args;
-    const method = args.includes('--method') ? args[args.indexOf('--method') + 1] : 'GET';
+    const method = args.includes('--method')
+      ? args[args.indexOf('--method') + 1]
+      : 'GET';
     calls.push(`${method} ${path}`);
     if (method === 'GET') {
-      if (!present.has(path)) throw Object.assign(new Error('gh: Not Found (HTTP 404)'), { stderr: 'HTTP 404' });
+      if (!present.has(path))
+        throw Object.assign(new Error('gh: Not Found (HTTP 404)'), {
+          stderr: 'HTTP 404',
+        });
       return '{}';
     }
     const body = JSON.parse(input);
-    if (path.endsWith('/git/refs')) present.add('repos/o/r/git/ref/heads/screenshots');
+    if (path.endsWith('/git/refs'))
+      present.add('repos/o/r/git/ref/heads/screenshots');
     if (path.includes('/contents/')) {
       assert.match(body.message, /\[skip ci\]/);
       assert.equal(Buffer.from(body.content, 'base64').toString(), 'pixels');
@@ -168,7 +242,10 @@ test('github store: creates the orphan branch once, skips files already there', 
   const url = await store.put('proj/hash/a b.png', Buffer.from('pixels'));
   await store.put('proj/hash/a b.png', Buffer.from('pixels'));
 
-  assert.equal(url, 'https://github.com/o/r/blob/screenshots/proj/hash/a%20b.png?raw=true');
+  assert.equal(
+    url,
+    'https://github.com/o/r/blob/screenshots/proj/hash/a%20b.png?raw=true'
+  );
   assert.deepEqual(calls, [
     'GET repos/o/r/git/ref/heads/screenshots',
     'POST repos/o/r/git/trees',
@@ -181,22 +258,32 @@ test('github store: creates the orphan branch once, skips files already there', 
 });
 
 test('the PR body gets a screenshots section, replaced on the next run', () => {
-  const first = withScreenshots('## Summary\n\nText.\n', [{ name: 'paid-with', url: 'https://x/1.png' }]);
+  const first = withScreenshots('## Summary\n\nText.\n', [
+    { name: 'paid-with', url: 'https://x/1.png' },
+  ]);
   assert.equal(
     first,
     '## Summary\n\nText.\n\n<!-- pr-shots:start -->\n## Screenshots\n\n**Paid with**\n\n![Paid with](https://x/1.png)\n<!-- pr-shots:end -->\n'
   );
 
-  const second = withScreenshots(`${first}\nFooter`, [{ name: 'list', url: 'https://x/2.png' }]);
+  const second = withScreenshots(`${first}\nFooter`, [
+    { name: 'list', url: 'https://x/2.png' },
+  ]);
   assert.ok(!second.includes('1.png'));
-  assert.ok(second.startsWith('## Summary\n\nText.\n\n<!-- pr-shots:start -->'));
+  assert.ok(
+    second.startsWith('## Summary\n\nText.\n\n<!-- pr-shots:start -->')
+  );
   assert.ok(second.endsWith('<!-- pr-shots:end -->\n\nFooter'));
 });
 
 test('cli: path prints where the screenshot goes', () => {
   const dir = repo();
   const env = { ...process.env, ...shotsDir() };
-  const out = execFileSync('node', [join(import.meta.dirname, '..', 'bin', 'pr-shots.mjs'), 'path', 'list'], { cwd: dir, env, encoding: 'utf8' }).trim();
+  const out = execFileSync(
+    'node',
+    [join(import.meta.dirname, '..', 'bin', 'pr-shots.mjs'), 'path', 'list'],
+    { cwd: dir, env, encoding: 'utf8' }
+  ).trim();
   assert.match(basename(out), /^feat-category-admin-list-[0-9a-f]{7,}\.png$/);
 });
 
@@ -207,10 +294,22 @@ test('r2 store: pipes the file to wrangler and returns the public URL', async ()
     { wrangler: (args, input) => calls.push({ args, input: input.toString() }) }
   );
 
-  assert.equal(await store.put('proj/hash/a b.png', Buffer.from('pixels')), 'https://pub.example/proj/hash/a%20b.png');
+  assert.equal(
+    await store.put('proj/hash/a b.png', Buffer.from('pixels')),
+    'https://pub.example/proj/hash/a%20b.png'
+  );
   assert.deepEqual(calls, [
     {
-      args: ['r2', 'object', 'put', 'shots/proj/hash/a b.png', '--pipe', '--remote', '--content-type', 'image/png'],
+      args: [
+        'r2',
+        'object',
+        'put',
+        'shots/proj/hash/a b.png',
+        '--pipe',
+        '--remote',
+        '--content-type',
+        'image/png',
+      ],
       input: 'pixels',
     },
   ]);
@@ -218,7 +317,16 @@ test('r2 store: pipes the file to wrangler and returns the public URL', async ()
   assert.throws(() => r2Store({ bucket: 'shots' }), /needs publicUrl/);
   const failing = r2Store(
     { bucket: 'b', publicUrl: 'https://p' },
-    { wrangler: () => { throw Object.assign(new Error('exit 1'), { stderr: 'bucket not found' }); } }
+    {
+      wrangler: () => {
+        throw Object.assign(new Error('exit 1'), {
+          stderr: 'bucket not found',
+        });
+      },
+    }
   );
-  await assert.rejects(failing.put('a.png', Buffer.from('x')), /upload of a.png failed: bucket not found/);
+  await assert.rejects(
+    failing.put('a.png', Buffer.from('x')),
+    /upload of a.png failed: bucket not found/
+  );
 });

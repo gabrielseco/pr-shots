@@ -37,16 +37,19 @@ export function sign({
 
   const all = {
     ...Object.fromEntries(
-      Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value])
+      Object.entries(headers).map(([name, value]) => [
+        name.toLowerCase(),
+        value,
+      ])
     ),
     host,
     'x-amz-content-sha256': payloadHash,
     'x-amz-date': amzDate,
   };
-  const names = Object.keys(all).sort();
+  const names = Object.keys(all).toSorted();
   const query = [...searchParams.entries()]
     .map(([key, value]) => `${encode(key)}=${encode(value)}`)
-    .sort()
+    .toSorted()
     .join('&');
 
   const canonicalRequest = [

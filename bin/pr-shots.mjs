@@ -5,7 +5,12 @@ import { basename, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { loadConfig } from '../src/config.mjs';
 import { branchShots, gitContext, root, shotPath } from '../src/context.mjs';
-import { createStore, markdown, upload, withScreenshots } from '../src/publish.mjs';
+import {
+  createStore,
+  markdown,
+  upload,
+  withScreenshots,
+} from '../src/publish.mjs';
 
 const HELP = `pr-shots: keep the screenshots that prove a change, and put them in the pull request.
 
@@ -54,7 +59,11 @@ function config() {
 }
 
 const gh = (ghArgs, input) =>
-  execFileSync('gh', ghArgs, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'] });
+  execFileSync('gh', ghArgs, {
+    input,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'inherit'],
+  });
 
 async function main() {
   if (flags.help || !command || command === 'help') {
@@ -79,7 +88,8 @@ async function main() {
     case 'open': {
       const dir = join(root(), context.project);
       mkdirSync(dir, { recursive: true });
-      const opener = { darwin: 'open', win32: 'explorer' }[process.platform] ?? 'xdg-open';
+      const opener =
+        { darwin: 'open', win32: 'explorer' }[process.platform] ?? 'xdg-open';
       execFileSync(opener, [dir], { stdio: 'ignore' });
       return;
     }
@@ -93,10 +103,16 @@ async function main() {
               return { path, name: basename(path).replace(/\.[^.]+$/, '') };
             })
           : branchShots(context);
-      if (files.length === 0) throw new Error(`no screenshots for ${context.branch} in ${join(root(), context.project)}`);
+      if (files.length === 0)
+        throw new Error(
+          `no screenshots for ${context.branch} in ${join(root(), context.project)}`
+        );
 
       const settings = config();
-      const uploaded = await upload(createStore(settings), files, { project: context.project, prefix: settings.prefix });
+      const uploaded = await upload(createStore(settings), files, {
+        project: context.project,
+        prefix: settings.prefix,
+      });
       console.log(markdown(uploaded));
       return;
     }
@@ -104,18 +120,30 @@ async function main() {
     case 'pr': {
       const shots = branchShots(context);
       if (shots.length === 0) {
-        console.error(`no screenshots for ${context.branch} in ${join(root(), context.project)}; nothing to do`);
+        console.error(
+          `no screenshots for ${context.branch} in ${join(root(), context.project)}; nothing to do`
+        );
         return;
       }
 
       const selector = args[0] ? [args[0]] : [];
-      const pr = JSON.parse(gh(['pr', 'view', ...selector, '--json', 'number,url,body']));
+      const pr = JSON.parse(
+        gh(['pr', 'view', ...selector, '--json', 'number,url,body'])
+      );
       const settings = config();
       const store = createStore(settings);
-      const uploaded = await upload(store, shots.reverse(), { project: context.project, prefix: settings.prefix });
+      const uploaded = await upload(store, shots.toReversed(), {
+        project: context.project,
+        prefix: settings.prefix,
+      });
 
-      gh(['pr', 'edit', String(pr.number), '--body-file', '-'], withScreenshots(pr.body, uploaded));
-      console.log(`${uploaded.length} screenshot(s) from ${store.name} in ${pr.url}`);
+      gh(
+        ['pr', 'edit', String(pr.number), '--body-file', '-'],
+        withScreenshots(pr.body, uploaded)
+      );
+      console.log(
+        `${uploaded.length} screenshot(s) from ${store.name} in ${pr.url}`
+      );
       return;
     }
 

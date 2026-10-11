@@ -23,20 +23,36 @@ function readJson(path) {
   try {
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch (error) {
-    throw new Error(`${path} is not valid JSON: ${error.message}`);
+    throw new Error(`${path} is not valid JSON: ${error.message}`, {
+      cause: error,
+    });
   }
 }
 
 const defined = (object) =>
-  Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined && value !== ''));
+  Object.fromEntries(
+    Object.entries(object).filter(
+      ([, value]) => value !== undefined && value !== ''
+    )
+  );
 
-export function loadConfig({ flags = {}, env = process.env, cwd = process.cwd() } = {}) {
+export function loadConfig({
+  flags = {},
+  env = process.env,
+  cwd = process.cwd(),
+} = {}) {
   const fromEnv = Object.fromEntries(
     Object.entries(KEYS).map(([key, variable]) => [key, env[variable]])
   );
 
   const config = {
-    ...readJson(join(env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'pr-shots', 'config.json')),
+    ...readJson(
+      join(
+        env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
+        'pr-shots',
+        'config.json'
+      )
+    ),
     ...readJson(join(cwd, '.pr-shots.json')),
     ...defined(fromEnv),
     ...defined(flags),

@@ -89,6 +89,9 @@ directory, `~/.config/pr-shots/config.json`.
 A project's `.pr-shots.json` is the file that gets committed: keep the keys in the environment or
 in the file under `~/.config`.
 
-## Tests
+## Development
 
+    npm install          # oxlint and oxfmt, the only (dev) dependencies
     npm test
+    npm run lint
+    npm run format       # or format:check

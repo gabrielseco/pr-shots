@@ -13,17 +13,36 @@ function defaultGh(args, input) {
   });
 }
 
-const notFound = (error) => /HTTP 404/.test(`${error.stderr ?? ''}${error.message}`);
+const notFound = (error) =>
+  /HTTP 404/.test(`${error.stderr ?? ''}${error.message}`);
 
 export function githubStore(config, { gh = defaultGh } = {}) {
   const repo =
-    config.repo ?? gh(['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner']).trim();
+    config.repo ??
+    gh([
+      'repo',
+      'view',
+      '--json',
+      'nameWithOwner',
+      '-q',
+      '.nameWithOwner',
+    ]).trim();
   const branch = config.branch ?? 'screenshots';
   const api = (path, body) =>
     JSON.parse(
       body === undefined
         ? gh(['api', `repos/${repo}/${path}`])
-        : gh(['api', `repos/${repo}/${path}`, '--method', body.method, '--input', '-'], JSON.stringify(body.json))
+        : gh(
+            [
+              'api',
+              `repos/${repo}/${path}`,
+              '--method',
+              body.method,
+              '--input',
+              '-',
+            ],
+            JSON.stringify(body.json)
+          )
     );
 
   const exists = (path) => {
@@ -39,7 +58,8 @@ export function githubStore(config, { gh = defaultGh } = {}) {
   let branchReady = false;
   // An orphan branch: the screenshots share no history with the code.
   function ensureBranch() {
-    if (branchReady || exists(`git/ref/heads/${branch}`)) return (branchReady = true);
+    if (branchReady || exists(`git/ref/heads/${branch}`))
+      return (branchReady = true);
 
     const tree = api('git/trees', {
       method: 'POST',
@@ -49,7 +69,8 @@ export function githubStore(config, { gh = defaultGh } = {}) {
             path: 'README.md',
             mode: '100644',
             type: 'blob',
-            content: 'Screenshots attached to pull requests by pr-shots. Not part of the code.\n',
+            content:
+              'Screenshots attached to pull requests by pr-shots. Not part of the code.\n',
           },
         ],
       },
@@ -58,7 +79,10 @@ export function githubStore(config, { gh = defaultGh } = {}) {
       method: 'POST',
       json: { message: 'chore: screenshots branch [skip ci]', tree: tree.sha },
     });
-    api('git/refs', { method: 'POST', json: { ref: `refs/heads/${branch}`, sha: commit.sha } });
+    api('git/refs', {
+      method: 'POST',
+      json: { ref: `refs/heads/${branch}`, sha: commit.sha },
+    });
     return (branchReady = true);
   }
 
