@@ -23,6 +23,7 @@ export function r2Store(config, { wrangler = defaultWrangler } = {}) {
 
   return {
     name: `r2://${config.bucket}`,
+    pages: true,
 
     async put(key, body) {
       try {

@@ -10,6 +10,7 @@ const CONTENT_TYPES = {
   svg: 'image/svg+xml',
   mp4: 'video/mp4',
   webm: 'video/webm',
+  html: 'text/html; charset=utf-8',
 };
 
 export const contentType = (file) =>
@@ -35,6 +36,8 @@ export function s3Store(config, { fetch = globalThis.fetch } = {}) {
 
   return {
     name: `s3://${config.bucket}`,
+    // A public bucket serves an HTML page as a page: the gallery can live here.
+    pages: true,
 
     /** Uploads `body` at `key` and resolves to the URL a browser can load. */
     async put(key, body) {

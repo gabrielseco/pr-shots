@@ -9,6 +9,7 @@ import {
   createStore,
   markdown,
   upload,
+  uploadGallery,
   withScreenshots,
 } from '../src/publish.mjs';
 
@@ -109,11 +110,14 @@ async function main() {
         );
 
       const settings = config();
-      const uploaded = await upload(createStore(settings), files, {
-        project: context.project,
-        prefix: settings.prefix,
+      const store = createStore(settings);
+      const target = { project: context.project, prefix: settings.prefix };
+      const uploaded = await upload(store, files, target);
+      const gallery = await uploadGallery(store, uploaded, {
+        ...target,
+        title: `${context.project} · ${context.branch}`,
       });
-      console.log(markdown(uploaded));
+      console.log(markdown(uploaded, gallery));
       return;
     }
 
@@ -128,22 +132,25 @@ async function main() {
 
       const selector = args[0] ? [args[0]] : [];
       const pr = JSON.parse(
-        gh(['pr', 'view', ...selector, '--json', 'number,url,body'])
+        gh(['pr', 'view', ...selector, '--json', 'number,url,title,body'])
       );
       const settings = config();
       const store = createStore(settings);
-      const uploaded = await upload(store, shots.toReversed(), {
-        project: context.project,
-        prefix: settings.prefix,
+      const target = { project: context.project, prefix: settings.prefix };
+      const uploaded = await upload(store, shots.toReversed(), target);
+      const gallery = await uploadGallery(store, uploaded, {
+        ...target,
+        title: `${pr.title} #${pr.number}`,
       });
 
       gh(
         ['pr', 'edit', String(pr.number), '--body-file', '-'],
-        withScreenshots(pr.body, uploaded)
+        withScreenshots(pr.body, uploaded, gallery)
       );
       console.log(
         `${uploaded.length} screenshot(s) from ${store.name} in ${pr.url}`
       );
+      if (gallery) console.log(`gallery: ${gallery}`);
       return;
     }
 
