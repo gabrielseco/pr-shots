@@ -77,18 +77,85 @@ export function markdown(uploaded, galleryUrl) {
 
   const grid = `<table>\n${rows.join('\n')}\n</table>`;
   return galleryUrl
-    ? `[Open as a gallery](${galleryUrl}): click a screenshot, then use the arrow keys.\n\n${grid}`
+    ? `[Open as a gallery](${galleryUrl}) (⌘-click or Ctrl-click for a new tab): click a screenshot, then use the arrow keys.\n\n${grid}`
     : grid;
 }
 
-/** The body with its screenshots section replaced, or added at the end. */
-export function withScreenshots(body, uploaded, galleryUrl) {
-  const section = `${START}\n## Screenshots\n\n${markdown(uploaded, galleryUrl)}\n${END}`;
+const PLACEHOLDERS = new Set(['', 'n/a', 'na', '-', 'none', 'tbd']);
+
+/**
+ * Finds a `Screenshots` heading outside code fences and the lines it owns:
+ * up to the next heading of the same or a higher level, or the end.
+ * `placeholder` is true when nothing was written under it.
+ */
+function templateSections(lines) {
+  const found = [];
+  let fence = false;
+  let open;
+  const close = (end) => {
+    if (!open) return;
+    const content = lines
+      .slice(open.start + 1, end)
+      .join('\n')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .trim()
+      .toLowerCase();
+    found.push({ ...open, end, placeholder: PLACEHOLDERS.has(content) });
+    open = undefined;
+  };
+
+  lines.forEach((raw, index) => {
+    const line = raw.replace(/\r$/, '');
+    if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+    if (fence) return;
+    const heading = /^(#{1,6})\s/.exec(line);
+    if (!heading) return;
+    if (open && heading[1].length <= open.level) close(index);
+    if (!open && /^#{1,6}\s*Screenshots\s*$/i.test(line))
+      open = { start: index, level: heading[1].length };
+  });
+  close(lines.length);
+  return found;
+}
+
+/**
+ * The body with its screenshots section replaced, or added at the end. A
+ * `Screenshots` heading from the PR template that holds only a placeholder is
+ * taken over, at its own heading level; one with content is left alone.
+ */
+export function withScreenshots(
+  body,
+  uploaded,
+  galleryUrl,
+  warn = (message) => console.error(message)
+) {
+  const gallery = (hashes) =>
+    `${START}\n${hashes} Screenshots\n\n${markdown(uploaded, galleryUrl)}\n${END}`;
   const start = body.indexOf(START);
   const end = body.indexOf(END);
 
   if (start !== -1 && end > start) {
-    return body.slice(0, start) + section + body.slice(end + END.length);
+    const previous = /^(#{1,6})\s*Screenshots\s*$/im.exec(
+      body.slice(start, end)
+    );
+    return (
+      body.slice(0, start) +
+      gallery(previous ? previous[1] : '##') +
+      body.slice(end + END.length)
+    );
   }
-  return `${body.trimEnd()}\n\n${section}\n`;
+
+  const lines = body.split('\n');
+  const sections = templateSections(lines);
+  const template = sections.find((section) => section.placeholder);
+  if (template) {
+    const before = lines.slice(0, template.start).join('\n');
+    const after = lines.slice(template.end).join('\n');
+    return `${before ? `${before}\n` : ''}${gallery('#'.repeat(template.level))}\n${after.trim() ? `\n${after}` : ''}`;
+  }
+  if (sections.length > 0)
+    warn(
+      'pr-shots: kept the existing "Screenshots" section and added its own at the end'
+    );
+  return `${body.trimEnd()}\n\n${gallery('##')}\n`;
 }

@@ -10,12 +10,15 @@ It does two things:
    dashes, `<sha>` is the short HEAD.
 2. **Publishes them.** `pr-shots pr` uploads the current branch's screenshots and writes a
    `## Screenshots` section into the pull request's description: a grid of thumbnails. Running it
-   again replaces the section.
+   again replaces the section. If the pull request template has a `## Screenshots` placeholder
+   (empty, `N/A`, `TBD`, a comment), that section is replaced in place; one someone filled in by
+   hand is kept, and the pr-shots section is added at the end.
 3. **Shows them as a carousel.** A pull request's description can't run scripts, so with the `r2`
    and `s3` stores a `gallery.html` is uploaded beside the images and each thumbnail links to it,
    opened on that image. Left and right arrows (or Home / End) move between them, a click on the
    image switches between fitting the window and full size, and one Back returns to the pull
-   request. The `github` store can't serve a page, so there a thumbnail opens its image.
+   request. Links in a pull request's description open in the same tab (GitHub drops `target`);
+   ⌘-click or Ctrl-click opens a new one. The `github` store can't serve a page, so there a thumbnail opens its image.
 
 No dependencies; Node 22 or later. `pr-shots pr` and the `github` store use the `gh` CLI.
 

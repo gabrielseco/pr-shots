@@ -282,6 +282,77 @@ test('the PR body gets a screenshots section, replaced on the next run', () => {
   assert.ok(second.endsWith('<!-- pr-shots:end -->\n\nFooter'));
 });
 
+const SHOT = [{ name: 'a', url: 'https://x/a.png' }];
+const sectionOf = (hashes) => (body) =>
+  body.match(new RegExp(`^${hashes} Screenshots$`, 'gm'))?.length ?? 0;
+
+test('a template placeholder section is taken over in place', () => {
+  const body =
+    '## Summary\n\nText.\n\n## Screenshots\n\nN/A\n\n## Related Resources\n\nLinks\n';
+  const out = withScreenshots(body, SHOT, undefined, () => assert.fail());
+  assert.equal(sectionOf('##')(out), 1);
+  assert.ok(
+    out.startsWith(
+      '## Summary\n\nText.\n\n<!-- pr-shots:start -->\n## Screenshots'
+    )
+  );
+  assert.ok(
+    out.endsWith('<!-- pr-shots:end -->\n\n## Related Resources\n\nLinks\n')
+  );
+  assert.ok(!out.includes('N/A'));
+});
+
+test('a placeholder that is only a comment, or the last section, is replaced', () => {
+  const comment = withScreenshots(
+    '## Screenshots\n\n<!-- Add screenshots -->\n\n## Notes\n',
+    SHOT
+  );
+  assert.ok(comment.startsWith('<!-- pr-shots:start -->\n## Screenshots'));
+  assert.ok(comment.endsWith('<!-- pr-shots:end -->\n\n## Notes\n'));
+  assert.ok(!comment.includes('Add screenshots'));
+
+  const last = withScreenshots(
+    '## Summary\n\nText.\n\n## Screenshots\n\nTBD',
+    SHOT
+  );
+  assert.equal(sectionOf('##')(last), 1);
+  assert.ok(last.endsWith('<!-- pr-shots:end -->\n'));
+  assert.ok(!last.includes('TBD'));
+});
+
+test('a template placeholder keeps its heading level', () => {
+  const body = '## Summary\n\n### Screenshots\n\n-\n\n## Notes\n';
+  const out = withScreenshots(body, SHOT);
+  assert.equal(sectionOf('###')(out), 1);
+  assert.equal(sectionOf('##')(out), 0);
+  assert.equal(out, withScreenshots(out, SHOT));
+});
+
+test('a section with content is kept, and the warning says so', () => {
+  const body = '## Screenshots\n\n![a](https://x/mine.png)\n\n## Notes\n';
+  const warnings = [];
+  const out = withScreenshots(body, SHOT, undefined, (m) => warnings.push(m));
+  assert.ok(out.startsWith(body.trimEnd()));
+  assert.ok(out.includes('<!-- pr-shots:start -->'));
+  assert.deepEqual(warnings, [
+    'pr-shots: kept the existing "Screenshots" section and added its own at the end',
+  ]);
+});
+
+test('with markers present, a template heading elsewhere is left alone', () => {
+  const body =
+    '## Screenshots\n\nN/A\n\n<!-- pr-shots:start -->\n## Screenshots\n\nold\n<!-- pr-shots:end -->\n';
+  const out = withScreenshots(body, SHOT);
+  assert.ok(out.startsWith('## Screenshots\n\nN/A\n\n<!-- pr-shots:start -->'));
+  assert.ok(!out.includes('old'));
+});
+
+test('running twice gives the same body as once', () => {
+  const body = '## Summary\n\n## Screenshots\n\nN/A\n\n## Notes\n';
+  const once = withScreenshots(body, SHOT, 'https://x/gallery.html');
+  assert.equal(withScreenshots(once, SHOT, 'https://x/gallery.html'), once);
+});
+
 test('with a gallery, each thumbnail opens the carousel on its image', () => {
   const shots = ['a', 'b', 'c', 'd'].map((name) => ({
     name,
@@ -292,6 +363,8 @@ test('with a gallery, each thumbnail opens the carousel on its image', () => {
   assert.ok(
     section.startsWith('[Open as a gallery](https://x/h/gallery.html)')
   );
+  assert.ok(section.includes('(⌘-click or Ctrl-click for a new tab)'));
+  assert.ok(!markdown(shots).includes('⌘'));
   assert.deepEqual(
     [...section.matchAll(/<a href="([^"]+)">/g)].map((match) => match[1]),
     [1, 2, 3, 4].map((n) => `https://x/h/gallery.html#${n}`)
